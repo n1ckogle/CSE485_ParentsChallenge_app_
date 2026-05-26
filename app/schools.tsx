@@ -1,3 +1,4 @@
+import React, { useContext } from "react";
 import {
   Linking,
   SafeAreaView,
@@ -7,6 +8,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { LanguageContext } from "../LanguageContext";
+import { translations } from "../translations";
 
 type SchoolOption = {
   title: string;
@@ -14,61 +17,61 @@ type SchoolOption = {
   url: string;
 };
 
-const OPTIONS: SchoolOption[] = [
-  {
-    title: "Eastern El Paso County",
-    color: "#C62828",
-    url: "https://parentschallenge.org/choice-options/eastern-el-paso-county/", 
-  },
-  {
-    title: "Pueblo County",
-    color: "#0B7D0B",
-    url: "https://parentschallenge.org/choice-options/pueblo-county/",
-  },
-  {
-    title: "Pikes Peak Region",
-    color: "#0B5A88",
-    url: "https://parentschallenge.org/choice-options/pikes-peak-region/",
-  },
-  {
-    title: "Teller County",
-    color: "#D8742E",
-    url: "https://parentschallenge.org/choice-options/teller-county/",
-  },
-  {
-    title: "Online / Homeschooling",
-    color: "#F4C430",
-    url: "https://parentschallenge.org/choice-options/online-homeschool/",
-  },
-];
-
 export default function Schools() {
+  const context = useContext(LanguageContext);
+  const isSpanish = context?.isSpanish ?? false;
+  const currentLang = isSpanish ? "es" : "en";
+
+  const headerText = translations?.[currentLang]?.schoolsHeaderText ?? "Schools";
+  const descriptionText1 = translations?.[currentLang]?.schoolsDescriptionText1 ?? "";
+  const descriptionText2 = translations?.[currentLang]?.schoolsDescriptionText2 ?? "";
+  const easternCountyText = translations?.[currentLang]?.schoolsEasternCountyText ?? "Eastern El Paso County";
+  const puebloCountyText = translations?.[currentLang]?.schoolsPuebloCountyText ?? "Pueblo County";
+  const pikesPeakText = translations?.[currentLang]?.schoolsPikesPeakText ?? "Pikes Peak Region";
+  const tellerCountyText = translations?.[currentLang]?.schoolsTellerCountyText ?? "Teller County";
+  const onlineHomeschoolText = translations?.[currentLang]?.schoolsOnlineHomeschoolText ?? "Online / Homeschool";
+
+  const OPTIONS: SchoolOption[] = [
+    {
+      title: easternCountyText,
+      color: "#C62828",
+      url: "https://parentschallenge.org/choice-options/eastern-el-paso-county/", 
+    },
+    {
+      title: puebloCountyText,
+      color: "#0B7D0B",
+      url: "https://parentschallenge.org/choice-options/pueblo-county/",
+    },
+    {
+      title: pikesPeakText,
+      color: "#0B5A88",
+      url: "https://parentschallenge.org/choice-options/pikes-peak-region/",
+    },
+    {
+      title: tellerCountyText,
+      color: "#D8742E",
+      url: "https://parentschallenge.org/choice-options/teller-county/",
+    },
+    {
+      title: onlineHomeschoolText,
+      color: "#F4C430",
+      url: "https://parentschallenge.org/choice-options/online-homeschool/",
+    },
+  ];
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Header */}
-        <Text style={styles.header}>Our School Choices</Text>
+        <Text style={styles.header}>{headerText}</Text>
 
-        {/* Description Box */}
         <View style={styles.descriptionBox}>
-          <Text style={styles.descriptionText}>
-            At Parents Challenge, we believe that every child deserves access to
-            a quality education that fits their unique needs. We empower parents
-            by providing the resources and support needed to make informed
-            decisions about their children’s education.
-          </Text>
-
-          <Text style={styles.descriptionText}>
-            Simply click on a county below to view a list of public, private, and
-            charter schools in that region. Your child’s future starts with the
-            right choice—let us help you find the best fit!
-          </Text>
+          <Text style={styles.descriptionText}>{descriptionText1}</Text>
+          <Text style={styles.descriptionText}>{descriptionText2}</Text>
         </View>
 
-        {/* School Options */}
         {OPTIONS.map((option) => (
           <TouchableOpacity
-            key={option.title}
+            key={option.url}
             style={[styles.card, { backgroundColor: option.color }]}
             onPress={() => Linking.openURL(option.url)}
             activeOpacity={0.85}

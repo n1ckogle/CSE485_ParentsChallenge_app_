@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1022725510874",
+    "project_id": "parentschallenge-de874",
+    "storage_bucket": "parentschallenge-de874.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1022725510874:android:3df55cc513b0a9ec4a37e3",
+        "android_client_info": {
+          "package_name": "com.parentschallenge.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRIL2VX9EpkFNcmBGkoaHQdI0cghWn06c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

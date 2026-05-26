@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   Alert,
   Linking,
@@ -10,10 +10,20 @@ import {
   View
 } from "react-native";
 import { db } from "../firebaseConfig";
+import { LanguageContext } from "../LanguageContext";
+import { translations } from "../translations";
 
 export default function Parents() {
   const router = useRouter();
   const [canvaLink, setCanvaLink] = useState<string | null>(null);
+
+  const context = useContext(LanguageContext);
+  const isSpanish = context?.isSpanish ?? false;
+  const currentLang = isSpanish ? "es" : "en";
+
+  const parentsInfoText = translations?.[currentLang]?.parentsInfoText ?? "Parents Info";
+  const empowermentSessionsText = translations?.[currentLang]?.parentsEmpowermentSessionsText ?? "Empowerment Sessions";
+  const videosText = translations?.[currentLang]?.parentsVideosText ?? "Videos";
 
   useEffect(() => {
     const fetchLink = async () => {
@@ -34,7 +44,12 @@ export default function Parents() {
     if (canvaLink) {
       Linking.openURL(canvaLink);
     } else {
-      Alert.alert("Loading", "Still fetching the latest schedule. Please try again in a second.");
+      Alert.alert(
+        isSpanish ? "Cargando" : "Loading", 
+        isSpanish 
+          ? "Todavía se está obteniendo el último horario. Por favor, inténtelo de nuevo en un segundo." 
+          : "Still fetching the latest schedule. Please try again in a second."
+      );
     }
   };
 
@@ -48,14 +63,14 @@ export default function Parents() {
           )
         }
       >
-        <Text style={styles.buttonText}>Parents Info</Text>
+        <Text style={styles.buttonText}>{parentsInfoText}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.button}
         onPress={openEmpowermentLink}
       >
-        <Text style={styles.buttonText}>Empowerment Sessions</Text>
+        <Text style={styles.buttonText}>{empowermentSessionsText}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -66,7 +81,7 @@ export default function Parents() {
           )
         }
       >
-        <Text style={styles.buttonText}>Videos</Text>
+        <Text style={styles.buttonText}>{videosText}</Text>
       </TouchableOpacity>
     </View>
   );

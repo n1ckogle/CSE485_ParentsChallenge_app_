@@ -2,7 +2,7 @@
   "expo": {
     "name": "ParentsChallenge",
     "slug": "ParentsChallenge",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "parentschallenge",
@@ -10,17 +10,21 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.parentschallenge.app",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "fb",
           "instagram",
           "twitter",
           "linkedin",
-          "vnd.youtube"
+          "vnd.youtube"        
         ]
       }
     },
     "android": {
+      "package": "com.parentschallenge.app",
+      "versionCode": 2,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -52,6 +56,18 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b0653582-0929-4cef-9338-2ec1e15a8fec"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/b0653582-0929-4cef-9338-2ec1e15a8fec"
     }
   }
 }

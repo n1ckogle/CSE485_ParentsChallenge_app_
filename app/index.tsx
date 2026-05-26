@@ -3,7 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import {
   Dimensions,
   Image,
@@ -16,6 +16,8 @@ import {
   View,
 } from "react-native";
 import { auth, db } from "../firebaseConfig";
+import { LanguageContext } from "../LanguageContext";
+import { translations } from "../translations";
 
 const { width } = Dimensions.get("window");
 const CAROUSEL_WIDTH = width - 40;
@@ -42,6 +44,22 @@ export default function Index() {
     require("../assets/images/carouselpic10.jpeg"),
     require("../assets/images/carouselpic11.jpeg"),
   ];
+
+  const context = useContext(LanguageContext);
+  const isSpanish = context?.isSpanish ?? false;
+  const currentLang = isSpanish ? "es" : "en";
+
+  const loginTextTranslation = translations?.[currentLang]?.homeLoginText ?? "Login";
+  const parentsText = translations?.[currentLang]?.homeParentsText ?? "Parents";
+  const schoolsText = translations?.[currentLang]?.homeSchoolsText ?? "Schools";
+  const resourcesText = translations?.[currentLang]?.homeResourcesText ?? "Resources";
+  const contactText = translations?.[currentLang]?.homeContactText ?? "Contact";
+  const settingsText = translations?.[currentLang]?.homeSettingsText ?? "Settings";
+  const bannerText = translations?.[currentLang]?.homeBannerText ?? "";
+  const aboutText = translations?.[currentLang]?.homeAboutText ?? "About";
+  const boardText = translations?.[currentLang]?.homeBoardText ?? "Board";
+  const eventsText = translations?.[currentLang]?.homeEventsText ?? "Events";
+  const programsText = translations?.[currentLang]?.homeProgramsText ?? "Programs";
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -85,6 +103,12 @@ export default function Index() {
     }
   };
 
+  const getDynamicAuthButtonText = () => {
+    if (!isLoggedIn) return loginTextTranslation;
+    if (userRole === "admin") return isSpanish ? "Admin" : "Admin";
+    return isSpanish ? "Panel" : "Dashboard";
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView 
@@ -97,23 +121,21 @@ export default function Index() {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.loginButton} onPress={handleAuthAction}>
-            <Text style={styles.loginText}>
-              {isLoggedIn ? (userRole === "admin" ? "Admin" : "Dashboard") : "Login"}
-            </Text>
+            <Text style={styles.loginText}>{getDynamicAuthButtonText()}</Text>
           </TouchableOpacity>
         </View>
 
         {menuOpen && (
           <View style={styles.menu}>
             {[
-              { name: "Parents", route: "/parents" },
-              { name: "Schools", route: "/schools" },
-              { name: "Resources", route: "/resources" },
-              { name: "Contact Us", route: "/contact" },
-              ...(isLoggedIn ? [{ name: "Settings", route: "/account_settings" }] : []),
+              { name: parentsText, route: "/parents" },
+              { name: schoolsText, route: "/schools" },
+              { name: resourcesText, route: "/resources" },
+              { name: contactText, route: "/contact" },
+              ...(isLoggedIn ? [{ name: settingsText, route: "/account_settings" }] : []),
             ].map((item) => (
               <TouchableOpacity
-                key={item.name}
+                key={item.route}
                 style={styles.menuItem}
                 onPress={() => {
                   setMenuOpen(false);
@@ -169,28 +191,24 @@ export default function Index() {
         </View>
 
         <LinearGradient colors={["#6696AB", "#3F6F80"]} style={styles.banner}>
-          <Text style={styles.bannerText}>
-            We see a tomorrow where all children have access to a quality
-            education that meets their individual needs and prepares them to be
-            productive, contributing citizens.
-          </Text>
+          <Text style={styles.bannerText}>{bannerText}</Text>
         </LinearGradient>
 
         <View style={styles.buttonGrid}>
           <TouchableOpacity style={styles.button} onPress={() => router.push("/about")}>
-            <Text style={styles.buttonText}>About Us</Text>
+            <Text style={styles.buttonText}>{aboutText}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => router.push("/board")}>
-            <Text style={styles.buttonText}>Board</Text>
+            <Text style={styles.buttonText}>{boardText}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.button}
             onPress={() => Linking.openURL("https://parentschallenge.org/events-activities/")}
           >
-            <Text style={styles.buttonText}>Events</Text>
+            <Text style={styles.buttonText}>{eventsText}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => router.push("/programs")}>
-            <Text style={styles.buttonText}>Our Programs</Text>
+            <Text style={styles.buttonText}>{programsText}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -248,7 +266,7 @@ const styles = StyleSheet.create({
   menuText: { fontSize: 18, color: "#333" },
   topImage: { 
     width: "70%", 
-    height: 120, // Slightly smaller height
+    height: 120,
     marginVertical: 10 
   },
   carouselContainer: {

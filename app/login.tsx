@@ -6,7 +6,7 @@ import {
   updateProfile
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { useState } from "react";
+import React, { useContext, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -15,231 +15,232 @@ import {
   View,
 } from "react-native";
 import { auth, db } from "../firebaseConfig";
+import { LanguageContext } from "../LanguageContext";
+import { translations } from "../translations";
 
 export default function Login() {
-  const [isCreateAccount, setIsCreateAccount] = useState(false);
+  const context = useContext(LanguageContext);
+  const isSpanish = context?.isSpanish ?? false;
 
-  // Login fields
+  const [isCreateAccount, setIsCreateAccount] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); 
+
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  // Signup fields
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
-  const [signupCode, setSignupCode] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [statusMessage, setStatusMessage] = useState("");
 
-  //make the function asynchronous to ensure login doesn't freeze the app
+  const titleLogin = translations?.[isSpanish ? "es" : "en"]?.loginTitleLogin ?? "Login";
+  const titleCreate = translations?.[isSpanish ? "es" : "en"]?.loginTitleCreate ?? "Create Account";
+  const emailPlaceholder = translations?.[isSpanish ? "es" : "en"]?.loginEmailPlaceholder ?? "Email Address";
+  const passwordPlaceholder = translations?.[isSpanish ? "es" : "en"]?.loginPasswordPlaceholder ?? "Password";
+  
+  const createAccountButtonText = translations?.[isSpanish ? "es" : "en"]?.loginCreateAccountButton ?? "Create Account";
+  const loginButtonText = translations?.[isSpanish ? "es" : "en"]?.loginButton ?? "Login";
+  
+  const alreadyAccountText = translations?.[isSpanish ? "es" : "en"]?.loginAlreadyAccountText ?? "Already have an account? Login";
+  const needAccountText = translations?.[isSpanish ? "es" : "en"]?.loginNeedAccountText ?? "Need an account? Create one";
+  const fillFieldsText = translations?.[isSpanish ? "es" : "en"]?.loginFillFieldsText ?? "Please fill out all fields.";
+  
+  const accountCreatedText = translations?.[isSpanish ? "es" : "en"]?.loginAccountCreatedText ?? "Account created! Please log in.";
+  const emailInUseText = translations?.[isSpanish ? "es" : "en"]?.loginEmailInUseText ?? "Email already in use.";
+  const weakPasswordText = translations?.[isSpanish ? "es" : "en"]?.loginWeakPasswordText ?? "Password too weak.";
+  const signupFailedText = translations?.[isSpanish ? "es" : "en"]?.loginSignupFailedText ?? "Signup failed.";
+
+  const firstNamePlaceholder = isSpanish ? "Nombre" : "First Name";
+  const lastNamePlaceholder = isSpanish ? "Apellido" : "Last Name";
+  const confirmPasswordPlaceholder = isSpanish ? "Confirmar contraseña" : "Confirm Password";
+  const forgotPasswordLabel = isSpanish ? "¿Olvidó su contraseña?" : "Forgot Password?";
+  const visibilityShowText = isSpanish ? "VER" : "SHOW";
+  const visibilityHideText = isSpanish ? "OCULTAR" : "HIDE";
+
   const handleLogin = async () => {
-    if (loginEmail.trim() && loginPassword.trim()) {
-      try {
-        //send a request to Firebase and receive a package with user info
-        const userCredential = await signInWithEmailAndPassword(auth, loginEmail.trim(), loginPassword);
-        const uid = userCredential.user.uid;
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      setStatusMessage(fillFieldsText);
+      return;
+    }
 
-        //search for the ID in the database
-        const userDoc = await getDoc(doc(db, "users", uid));
+    try {
+      setStatusMessage("");
+      const email = loginEmail.trim().toLowerCase();
+      
+      const userCredential = await signInWithEmailAndPassword(auth, email, loginPassword);
+      const uid = userCredential.user.uid;
 
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
+      const emailRef = doc(db, "approvedEmails", email);
+      const emailSnap = await getDoc(emailRef);
 
-          if (userData.role === "admin") {
-            router.replace("/admin_dashboard");
-          }
-          else {
-            router.replace("/uplanding");
-          }
-        }
-        else {
-          setStatusMessage("User profile not found.");
-        }
+      if (!emailSnap.exists()) {
+        setStatusMessage(isSpanish ? "Acceso denegado: Correo electrónico no aprobado." : "Access Denied: Email not approved.");
+        await auth.signOut();
+        return; 
       }
-      catch (error: any) {
-        //if invalid credential, notify user
-        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
-          setStatusMessage("Invalid email or password");
-        } else {
-          setStatusMessage("Login failed. Please try again.");
-        }
-        console.error(error.code);
+
+      const userDoc = await getDoc(doc(db, "users", uid));
+      if (userDoc.exists()) {
+        const role = userDoc.data().role;
+        router.replace(role === "admin" ? "/admin_dashboard" : "/uplanding");
+      } else {
+        setStatusMessage(isSpanish ? "Perfil de usuario no encontrado." : "User profile not found.");
       }
-    } else {
-      setStatusMessage("Please fill out all fields.");
+    } catch (error: any) {
+      console.warn("Auth Exception Root Cause:", error?.code, error?.message);
+      
+      if (error?.code === "auth/invalid-credential" || error?.code === "auth/user-not-found" || error?.code === "auth/wrong-password") {
+        setStatusMessage(isSpanish ? "Correo electrónico o contraseña inválidos" : "Invalid email or password");
+      } else {
+        setStatusMessage(error?.message || "Authentication error encountered.");
+      }
     }
   };
 
   const handleCreateAccount = async () => {
-    //check if the necessary fields are filled out and store the email
-    if (firstName.trim() && lastName.trim() && signupEmail.trim() && signupPassword.trim()) {
-      const emailLower = signupEmail.toLowerCase().trim();
-
-      const fullName = `${firstName.trim()} ${lastName.trim()}`;
-
-      try {
-        //check if the email is in the approved emails list and get a snapshot
-        const approvedRef = doc(db, "approvedEmails", emailLower);
-        const approvedSnap = await getDoc(approvedRef);
-
-        if (!approvedSnap.exists()) {
-          setStatusMessage("This email is not on the approved list. Contact an admin.");
-          return;
-        }
-
-        const approvedData = approvedSnap.data();
-
-        //create the user's authentication
-        const userCredential = await createUserWithEmailAndPassword(auth, emailLower, signupPassword);
-        const uid = userCredential.user.uid;
-
-        //add the user to the database
-        await setDoc(doc(db, "users", uid), {
-          uid: uid,
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: emailLower,
-          role: approvedData.role || "family",
-          isActive: true,
-        });
-
-        //update the user's name
-        await updateProfile(userCredential.user, { displayName: fullName });
-
-        //clear fields
-        setFirstName("");
-        setLastName("");
-        setSignupEmail("");
-        setSignupPassword("");
-        setStatusMessage("Account created! Please log in.");
-        setIsCreateAccount(false);
-      }
-
-      catch (error : any) {
-        if (error.code === 'auth/email-already-in-use') {
-          setStatusMessage("That email is already in use");
-        } else if (error.code === 'auth/weak-password') {
-          setStatusMessage("Password should be at least 6 characters");
-        } else {
-          setStatusMessage("Signup failed. Check connection.");
-        }
-        console.error(error.code);
-      }
+    if (!firstName.trim() || !lastName.trim() || !signupEmail.trim() || !signupPassword.trim()) {
+      setStatusMessage(fillFieldsText);
+      return;
     }
-    else {
-      setStatusMessage("Please fill out all fields.");
+
+    if (signupPassword !== confirmPassword) {
+      setStatusMessage(isSpanish ? "Las contraseñas no coinciden." : "Passwords do not match.");
+      return;
+    }
+
+    const emailLower = signupEmail.toLowerCase().trim();
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
+
+    try {
+      const approvedRef = doc(db, "approvedEmails", emailLower);
+      const approvedSnap = await getDoc(approvedRef);
+
+      if (!approvedSnap.exists()) {
+        setStatusMessage(isSpanish ? "Este correo no está autorizado. Contacte a un admin." : "This email is not authorized. Contact an admin.");
+        return;
+      }
+
+      const userCredential = await createUserWithEmailAndPassword(auth, emailLower, signupPassword);
+      await setDoc(doc(db, "users", userCredential.user.uid), {
+        uid: userCredential.user.uid,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: emailLower,
+        role: approvedSnap.data().role || "family",
+        isActive: true,
+      });
+
+      await updateProfile(userCredential.user, { displayName: fullName });
+      setStatusMessage(accountCreatedText);
+      setIsCreateAccount(false);
+      setConfirmPassword("");
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        setStatusMessage(emailInUseText);
+      } else if (error.code === 'auth/weak-password') {
+        setStatusMessage(weakPasswordText);
+      } else {
+        setStatusMessage(signupFailedText);
+      }
     }
   };
 
   const handleForgotPassword = async () => {
-      if (!loginEmail.trim()) {
-        setStatusMessage("Please enter your email first.");
-        return;
-      }
-      
-      try {
-        await sendPasswordResetEmail(auth, loginEmail.trim());
-        setStatusMessage("Reset link sent! Check your inbox.");
-      } catch (error: any) {
-        if (error.code === 'auth/user-not-found') {
-          setStatusMessage("No account found with this email.");
-        } else {
-          setStatusMessage("Error sending reset email.");
-        }
-        console.error(error.code);
-      }
-    };
+    if (!loginEmail.trim()) {
+      setStatusMessage(isSpanish ? "Ingrese su correo electrónico primero." : "Enter your email first.");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, loginEmail.trim());
+      setStatusMessage(isSpanish ? "¡Enlace de reinicio enviado!" : "Reset link sent!");
+    } catch (e) { 
+      setStatusMessage(isSpanish ? "Error al enviar el correo de restablecimiento." : "Error sending reset email."); 
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>
-        {isCreateAccount ? "Create an Account" : "Login"}
-      </Text>
+      <Text style={styles.title}>{isCreateAccount ? titleCreate : titleLogin}</Text>
 
-      {statusMessage !== "" && (
-        <Text style={styles.statusText}>{statusMessage}</Text>
-      )}
+      {statusMessage !== "" && <Text style={styles.statusText}>{statusMessage}</Text>}
 
-      {isCreateAccount ? (
-        <>
-          <TextInput
-            style={styles.input}
-            placeholder="First Name"
-            value={firstName}
-            onChangeText={setFirstName}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Last Name"
-            value={lastName}
-            onChangeText={setLastName}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={signupEmail}
-            onChangeText={setSignupEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={signupPassword}
-            onChangeText={setSignupPassword}
-            secureTextEntry
-          />
+      <View style={styles.formContainer}>
+        {isCreateAccount ? (
+          <>
+            <TextInput style={styles.input} placeholder={firstNamePlaceholder} placeholderTextColor="#888" value={firstName} onChangeText={setFirstName} />
+            <TextInput style={styles.input} placeholder={lastNamePlaceholder} placeholderTextColor="#888" value={lastName} onChangeText={setLastName} />
+            <TextInput style={styles.input} placeholder={emailPlaceholder} placeholderTextColor="#888" value={signupEmail} onChangeText={setSignupEmail} autoCapitalize="none" keyboardType="email-address" />
+            
+            <View style={styles.passwordWrapper}>
+              <TextInput 
+                style={[styles.input, { marginBottom: 0 }]} 
+                placeholder={passwordPlaceholder} 
+                placeholderTextColor="#888" 
+                value={signupPassword} 
+                onChangeText={setSignupPassword} 
+                secureTextEntry={!showPassword} 
+              />
+              <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
+                <Text style={styles.eyeText}>{showPassword ? visibilityHideText : visibilityShowText}</Text>
+              </TouchableOpacity>
+            </View>
 
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleCreateAccount}
-          >
-            <Text style={styles.primaryButtonText}>Create Account</Text>
-          </TouchableOpacity>
-        </>
-      ) : (
-        <>
-          <TextInput
-            style={styles.input}
-            placeholder="Email Adress"
-            value={loginEmail}
-            onChangeText={setLoginEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={loginPassword}
-            onChangeText={setLoginPassword}
-            secureTextEntry
-          />
+            <TextInput 
+              style={[styles.input, { marginTop: 12 }]} 
+              placeholder={confirmPasswordPlaceholder} 
+              placeholderTextColor="#888" 
+              value={confirmPassword} 
+              onChangeText={setConfirmPassword} 
+              secureTextEntry={!showPassword} 
+            />
 
-          <TouchableOpacity
-          onPress={handleForgotPassword}
-          style={styles.forgotPasswordContainer}
-          >
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleCreateAccount}>
+              <Text style={styles.primaryButtonText}>{createAccountButtonText}</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TextInput style={styles.input} placeholder={emailPlaceholder} placeholderTextColor="#888" value={loginEmail} onChangeText={setLoginEmail} autoCapitalize="none" keyboardType="email-address" />
+            
+            <View style={styles.passwordWrapper}>
+              <TextInput 
+                style={[styles.input, { marginBottom: 0 }]} 
+                placeholder={passwordPlaceholder} 
+                placeholderTextColor="#888" 
+                value={loginPassword} 
+                onChangeText={setLoginPassword} 
+                secureTextEntry={!showPassword}
+                autoCorrect={false} 
+              />
+              <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
+                <Text style={styles.eyeText}>{showPassword ? visibilityHideText : visibilityShowText}</Text>
+              </TouchableOpacity>
+            </View>
 
-          <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
-            <Text style={styles.primaryButtonText}>Login</Text>
-          </TouchableOpacity>
-        </>
-      )}
+            <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordContainer}>
+              <Text style={styles.forgotPasswordText}>{forgotPasswordLabel}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
+              <Text style={styles.primaryButtonText}>{loginButtonText}</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
 
       <TouchableOpacity
         style={styles.secondaryButton}
         onPress={() => {
           setIsCreateAccount((prev) => !prev);
           setStatusMessage("");
+          setShowPassword(false);
         }}
       >
         <Text style={styles.secondaryButtonText}>
-          {isCreateAccount
-            ? "Already have an account? Login"
-            : "Need an account? Create one"}
+          {isCreateAccount ? alreadyAccountText : needAccountText}
         </Text>
       </TouchableOpacity>
     </View>
@@ -249,22 +250,10 @@ export default function Login() {
 const BUTTON_COLOR = "#4a90e2";
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
-  statusText: {
-    fontSize: 14,
-    marginBottom: 16,
-  },
+  container: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, backgroundColor: "#fff" },
+  formContainer: { width: '100%' },
+  title: { fontSize: 28, fontWeight: "bold", marginBottom: 12 },
+  statusText: { fontSize: 14, marginBottom: 16, color: 'red', textAlign: 'center' },
   input: {
     width: "100%",
     borderWidth: 1,
@@ -274,38 +263,30 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 12,
     fontSize: 16,
+    color: "#000",
+    backgroundColor: "#fff",
   },
-  primaryButton: {
-    width: "100%",
-    backgroundColor: BUTTON_COLOR,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 4,
+  passwordWrapper: {
+    width: '100%',
+    position: 'relative',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
-  primaryButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
+  eyeButton: {
+    position: 'absolute',
+    right: 12,
+    height: '100%',
+    justifyContent: 'center',
   },
-  secondaryButton: {
-    marginTop: 16,
-  },
-  secondaryButtonText: {
+  eyeText: {
+    fontSize: 12,
+    fontWeight: 'bold',
     color: BUTTON_COLOR,
-    fontSize: 14,
-    fontWeight: "500",
   },
-  forgotPasswordContainer: {
-    alignSelf: "flex-end",
-    marginBottom: 15,
-    marginTop: -4,
-  },
-  forgotPasswordText: {
-    color: BUTTON_COLOR,
-    fontSize: 14,
-    fontWeight: "500",
-    textDecorationLine: "underline",
-  },
+  primaryButton: { width: "100%", backgroundColor: BUTTON_COLOR, paddingVertical: 12, borderRadius: 8, alignItems: "center", marginTop: 10 },
+  primaryButtonText: { color: "#fff", fontSize: 18, fontWeight: "600" },
+  secondaryButton: { marginTop: 20 },
+  secondaryButtonText: { color: BUTTON_COLOR, fontSize: 14, fontWeight: "500" },
+  forgotPasswordContainer: { alignSelf: "flex-end", marginBottom: 15, marginTop: 5 },
+  forgotPasswordText: { color: BUTTON_COLOR, fontSize: 14, fontWeight: "500", textDecorationLine: "underline" },
 });
