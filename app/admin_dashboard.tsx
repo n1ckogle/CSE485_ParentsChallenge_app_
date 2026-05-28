@@ -173,24 +173,35 @@ export default function AdminDashboard() {
     <View key={sub.id} style={styles.subItem}>
       <View style={styles.subRow}>
         <Text style={styles.subTitle}>{sub.formId.toUpperCase()}</Text>
-        <Text style={[styles.subStatus, { color: sub.status === "Approved" ? "#2ECC71" : "#E69A2F" }]}>
+        <Text 
+          style={[
+            styles.subStatus, 
+            { 
+              color: sub.status === "Approved" ? "#2ECC71" : sub.status === "Denied" ? "#E74C3C" : "#E69A2F" 
+            }
+          ]}
+        >
             {sub.status}
         </Text>
       </View>
       {sub.adminFeedback && <Text style={styles.existingFeedback}>Note: {sub.adminFeedback}</Text>}
+      
       <View style={styles.subActions}>
         <TouchableOpacity style={styles.smallBtn} onPress={() => Linking.openURL(`https://www.jotform.com/submission/${sub.jotformSubmissionId}`)}>
             <Text style={styles.btnText}>View Form</Text>
         </TouchableOpacity>
-        {sub.status === "Waiting for Approval" && (
-          <>
-            <TouchableOpacity style={[styles.smallBtn, { backgroundColor: "#2ECC71" }]} onPress={() => handleApprove(sub.fullPath)}>
-                <Text style={styles.btnText}>Approve</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.smallBtn, { backgroundColor: "#E74C3C" }]} onPress={() => { setActiveSub({ path: sub.fullPath, email: userEmail }); setDenialReason(""); setDenyModalVisible(true); }}>
-                <Text style={styles.btnText}>Deny</Text>
-            </TouchableOpacity>
-          </>
+
+        {/* Dynamic Status Editing Controls */}
+        {(sub.status === "Waiting for Approval" || sub.status === "Denied") && (
+          <TouchableOpacity style={[styles.smallBtn, { backgroundColor: "#2ECC71" }]} onPress={() => handleApprove(sub.fullPath)}>
+              <Text style={styles.btnText}>Approve</Text>
+          </TouchableOpacity>
+        )}
+
+        {(sub.status === "Waiting for Approval" || sub.status === "Approved") && (
+          <TouchableOpacity style={[styles.smallBtn, { backgroundColor: "#E74C3C" }]} onPress={() => { setActiveSub({ path: sub.fullPath, email: userEmail }); setDenialReason(sub.adminFeedback || ""); setDenyModalVisible(true); }}>
+              <Text style={styles.btnText}>Deny</Text>
+          </TouchableOpacity>
         )}
       </View>
     </View>
@@ -218,7 +229,7 @@ export default function AdminDashboard() {
       ) : (
         <FlatList 
             data={groupedSubmissions}
-            renderItem={({ item }) => {
+            renderItem={({ item, index }) => {
                 if (item.isHeader) {
                     return (
                         <View style={styles.sectionHeader}>
@@ -228,13 +239,13 @@ export default function AdminDashboard() {
                 }
 
                 const isExpanded = expandedUser === item.email;
-                const pendingCount = item.submissions.filter((s: any) => s.status === "Waiting for Approval").length;
+                const pendingCount = item.submissions?.filter((s: any) => s.status === "Waiting for Approval").length ?? 0;
                 
                 return (
                     <View style={[styles.userCard, item.isPriority && styles.priorityCard]}>
                         <TouchableOpacity style={styles.userHeader} onPress={() => setExpandedUser(isExpanded ? null : item.email)}>
                             <View>
-                                <Text style={styles.userName}>{item.lastName.toUpperCase()}</Text>
+                                <Text style={styles.userName}>{item.lastName ? item.lastName.toUpperCase() : "UNKNOWN"}</Text>
                                 <Text style={styles.userEmail}>{item.email}</Text>
                             </View>
                             {pendingCount > 0 && (
@@ -243,11 +254,15 @@ export default function AdminDashboard() {
                                 </View>
                             )}
                         </TouchableOpacity>
-                        {isExpanded && <View style={styles.expandedContent}>{item.submissions.map((sub: any) => renderSubmission(sub, item.email))}</View>}
+                        {isExpanded && (
+                          <View style={styles.expandedContent}>
+                            {item.submissions?.map((sub: any) => renderSubmission(sub, item.email))}
+                          </View>
+                        )}
                     </View>
                 );
             }}
-            keyExtractor={(item, idx) => item.isHeader ? `h-${idx}` : item.email}
+            keyExtractor={(item, idx) => item.isHeader ? `h-${idx}` : `${item.email}-${idx}`}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchAllSubmissions} />}
         />
       )}

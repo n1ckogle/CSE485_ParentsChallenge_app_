@@ -59,7 +59,7 @@ export default function Parents() {
         style={styles.button}
         onPress={() =>
           Linking.openURL(
-            "https://www.canva.com/design/DAGGnx3Wj7Q/oGDOeHihX-xaIV5lHiNrYA/view?utm_content=DAGGnx3Wj7Q&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h9b6e85cad5",
+            "https://www.canva.com/design/DAHIRBa_j1I/pcjtffxAI5OIxM1M9sB9lw/view?utm_content=DAHIRBa_j1I&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h18cebc51ab",
           )
         }
       >
@@ -68,7 +68,12 @@ export default function Parents() {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={openEmpowermentLink}
+                onPress={() =>
+          Linking.openURL(
+            "https://www.canva.com/design/DAHKIY0sYvg/LY1XUWo8tqBYqkiyAfMe6w/view?utm_content=DAHKIY0sYvg&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h6649a2640b",
+          )
+        }
+
       >
         <Text style={styles.buttonText}>{empowermentSessionsText}</Text>
       </TouchableOpacity>
