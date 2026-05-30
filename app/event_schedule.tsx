@@ -166,7 +166,7 @@ export default function EmpowermentSessions() {
 
         <Pressable style={[styles.button, { backgroundColor: "#34415D" }]} onPress={() => Linking.openURL("https://www.trackitforward.com")}>
           <Text style={styles.buttonText}>
-            {isSpanish ? "Registrarse en DonorView" : "Register in DonorView"}
+            {isSpanish ? "Registrarse en Track It Forward" : "Register in Track It Forward"}
           </Text>
         </Pressable>
 
