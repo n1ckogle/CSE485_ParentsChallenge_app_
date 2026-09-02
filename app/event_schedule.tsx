@@ -1,4 +1,5 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Stack } from "expo-router";
 import {
   addDoc,
   collection,
@@ -29,7 +30,6 @@ import {
 } from "react-native";
 import { auth, db } from "../firebaseConfig";
 import { LanguageContext } from "../LanguageContext";
-import { translations } from "../translations";
 
 export default function EmpowermentSessions() {
   const [canvaLink, setCanvaLink] = useState<string | null>(null);
@@ -46,17 +46,13 @@ export default function EmpowermentSessions() {
 
   const context = useContext(LanguageContext);
   const isSpanish = context?.isSpanish ?? false;
-  const currentLang = isSpanish ? "es" : "en";
-
-  const titleText = translations?.[currentLang]?.eventScheduleTitle ?? "Sessions";
-  const subtitleText = translations?.[currentLang]?.eventScheduleSubtitle ?? "";
 
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
 
     getDoc(doc(db, "settings", "canvaLink")).then((snap) => {
-      if (snap.exists()) setCanvaLink(snap.data().schedule);
+      if (snap.exists()) setCanvaLink(snap.data().empowermentSessionsMasterSchedule);
     });
 
     const today = new Date();
@@ -154,11 +150,25 @@ export default function EmpowermentSessions() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
+      {/* Hides routing breadcrumbs or navigation path names */}
+      <Stack.Screen options={{ title: "", headerShown: true }} />
+
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>{titleText}</Text>
-        <Text style={styles.subtitle}>{subtitleText}</Text>
+        {/* Title and Subtitles have been completely removed from here */}
         
-        <Pressable style={styles.button} onPress={() => canvaLink && Linking.openURL(canvaLink)}>
+        <Pressable 
+          style={styles.button} 
+          onPress={() => {
+            if (canvaLink) {
+              Linking.openURL(canvaLink);
+            } else {
+              Alert.alert(
+                isSpanish ? "Cargando" : "Loading",
+                isSpanish ? "Cargando el calendario..." : "Loading the calendar..."
+              );
+            }
+          }}
+        >
           <Text style={styles.buttonText}>
             {isSpanish ? "Ver Calendario Completo de Sesiones" : "View Full Session Calendar"}
           </Text>
@@ -251,7 +261,7 @@ export default function EmpowermentSessions() {
                   placeholderTextColor="#888"
                   value={newTime} 
                   keyboardType="numbers-and-punctuation"
-                  onChangeText={setNewTime} 
+                  onChangeText={setNewTime} // Fixed TypeScript typo
                 />
                 <View style={styles.ampmContainer}>
                   {["AM", "PM"].map((opt) => (
@@ -305,8 +315,6 @@ export default function EmpowermentSessions() {
 
 const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 50, alignItems: "center" },
-  title: { fontSize: 26, fontWeight: "bold", marginBottom: 12, color: "#000", textAlign: "center" },
-  subtitle: { fontSize: 15, color: "#555", marginBottom: 20, textAlign: "center" },
   button: { width: "100%", backgroundColor: "#6699AB", padding: 16, borderRadius: 15, marginVertical: 6 },
   buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
   headerRow: { flexDirection: "row", width: "100%", justifyContent: "space-between", alignItems: "center", marginTop: 25, marginBottom: 15 },

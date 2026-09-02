@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Stack } from "expo-router"; // Imported Stack here
 import React, { useContext } from "react";
 import {
   Linking,
@@ -60,6 +61,9 @@ export default function Contact() {
 
   return (
     <View style={styles.container}>
+      {/* This configuration removes the file/folder name from the header but keeps the back button */}
+      <Stack.Screen options={{ title: "" }} />
+
       <Text style={styles.title}>{contactTitle}</Text>
 
       <View style={styles.iconRow}>

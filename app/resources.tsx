@@ -1,4 +1,5 @@
 import * as Linking from "expo-linking";
+import { Stack } from "expo-router"; // Imported Stack here
 import React, { useContext } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LanguageContext } from "../LanguageContext";
@@ -16,6 +17,9 @@ export default function Other_Resources() {
 
   return (
     <View style={styles.container}>
+      {/* Clears header text at the very top but keeps the back button */}
+      <Stack.Screen options={{ title: "", headerShown: true }} />
+
       <Pressable
         style={styles.button}
         onPress={() =>

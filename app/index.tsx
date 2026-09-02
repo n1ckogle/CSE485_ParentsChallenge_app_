@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router"; // Imported Stack here
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useContext, useEffect, useRef, useState } from "react";
@@ -111,6 +111,9 @@ export default function Index() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Completely hides the native layout header stack */}
+      <Stack.Screen options={{ headerShown: false }} />
+
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

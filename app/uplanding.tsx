@@ -1,10 +1,11 @@
-import { router } from "expo-router";
+import { router, Stack } from "expo-router"; // Imported Stack here
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useContext, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -19,6 +20,7 @@ import { translations } from "../translations";
 export default function UPLanding() {
   const [parentName, setParentName] = useState("Parent");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [parentGuideLink, setParentGuideLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const context = useContext(LanguageContext);
@@ -29,30 +31,48 @@ export default function UPLanding() {
   const viewFormsText = translations?.[currentLang]?.upLandingViewFormsText ?? "View Forms";
   const eventScheduleText = translations?.[currentLang]?.upLandingEventScheduleText ?? "Event Schedule";
   const accountSettingsText = translations?.[currentLang]?.upLandingAccountSettingsText ?? "Account Settings";
+  
+  const parentsGuideText = isSpanish ? "Guía para Padres" : "Parents Guide";
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      const user = auth.currentUser;
-      if (user) {
-        try {
+    const fetchLandingData = async () => {
+      try {
+        const canvaSnap = await getDoc(doc(db, "settings", "canvaLink"));
+        if (canvaSnap.exists()) {
+          setParentGuideLink(canvaSnap.data().parentGuide || null);
+        }
+
+        const user = auth.currentUser;
+        if (user) {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists()) {
             const data = userDoc.data();
             setParentName(data.firstName || "Parent");
             setUserRole(data.role || "family");
           }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        } finally {
-          setLoading(false);
         }
-      } else {
+      } catch (error) {
+        console.error("Error fetching landing screen dataportfolio:", error);
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchUserData();
+    fetchLandingData();
   }, []);
+
+  const handleOpenGuide = () => {
+    if (parentGuideLink) {
+      Linking.openURL(parentGuideLink);
+    } else {
+      Alert.alert(
+        isSpanish ? "Cargando" : "Loading",
+        isSpanish 
+          ? "Todavía se está obteniendo el enlace de la guía. Por favor, inténtelo de nuevo en un segundo." 
+          : "Still fetching the guide link. Please try again in a second."
+      );
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -76,6 +96,9 @@ export default function UPLanding() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* This configuration removes "uplanding" but keeps the back button */}
+      <Stack.Screen options={{ title: "" }} />
+
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         <View style={styles.topSpacer} />
 
@@ -119,6 +142,14 @@ export default function UPLanding() {
             onPress={() => router.push("/event_schedule")}
           >
             <Text style={styles.cardText}>{eventScheduleText}</Text>
+          </TouchableOpacity>
+
+          {/* Parents Guide Dynamic URL Redirection Button */}
+          <TouchableOpacity
+            style={[styles.cardButton]} 
+            onPress={handleOpenGuide}
+          >
+            <Text style={[styles.cardText]}>{parentsGuideText}</Text> 
           </TouchableOpacity>
 
           <TouchableOpacity

@@ -1,34 +1,46 @@
-import { router } from "expo-router";
+import { router, Stack } from "expo-router";
 import {
-    arrayRemove,
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    query,
-    updateDoc,
-    where
+  collection,
+  collectionGroup,
+  getDocs,
+  query,
+  where
 } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Linking,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList,
+  Linking,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { auth, db } from "../firebaseConfig";
+
+const getSchoolYear = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  return now.getMonth() >= 6 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+};
+
+const getBaseFormId = (formId: string | undefined): string => {
+  if (!formId) return "";
+  return formId
+    .replace(/_(?:\d{4})(?:[-_/]\d{4})?$/, "")
+    .trim()
+    .toLowerCase();
+};
 
 export default function CoordinatorDashboard() {
   const [groupedSubmissions, setGroupedSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [groupIdDisplay, setGroupIdDisplay] = useState<string>("Loading Group...");
+
+  const activeYear = getSchoolYear();
 
   const fetchCoordinatorSubmissions = async () => {
     try {
@@ -36,43 +48,114 @@ export default function CoordinatorDashboard() {
       const user = auth.currentUser;
       if (!user || !user.email) return;
 
-      const coordDocRef = doc(db, "approvedEmails", user.email);
-      const coordDocSnap = await getDoc(coordDocRef);
-      const assignedEmails = coordDocSnap.data()?.approvedParents || [];
+      const groupsRef = collection(db, "groups");
+      const groupQuery = query(groupsRef, where("coordinatorEmail", "==", user.email.toLowerCase().trim()));
+      const groupSnap = await getDocs(groupQuery);
+
+      if (groupSnap.empty) {
+        setGroupedSubmissions([]);
+        setGroupIdDisplay("No Group Assigned");
+        return;
+      }
+
+      let assignedEmails: string[] = [];
+      groupSnap.docs.forEach(gDoc => {
+        const gData = gDoc.data();
+        if (gData.assignedParents && Array.isArray(gData.assignedParents)) {
+          assignedEmails = [...assignedEmails, ...gData.assignedParents];
+        }
+      });
+
+      setGroupIdDisplay(`Group ID: ${groupSnap.docs[0].id}`);
 
       if (assignedEmails.length === 0) {
         setGroupedSubmissions([]);
         return;
       }
 
+      const formsSnapshot = await getDocs(collection(db, "forms"));
+      const dynamicTemplates = formsSnapshot.docs.map(d => ({ 
+        id: d.id, 
+        ...d.data() 
+      })) as any[];
+
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("email", "in", assignedEmails));
       const userSnap = await getDocs(q);
 
-      const groups: Record<string, any> = {};
+      const groupsObj: Record<string, any> = {};
 
       userSnap.docs.forEach(uDoc => {
         const uData = uDoc.data();
-        groups[uData.email] = {
-          email: uData.email,
-          lastName: uData.lastName || "Unknown",
+        const userEmail = uData.email ? uData.email.toLowerCase().trim() : "";
+        if (!userEmail) return;
+
+        groupsObj[userEmail] = {
+          email: userEmail,
+          userId: uDoc.id,
+          lastName: uData.lastName ?? "Unknown",
           submissions: []
         };
       });
 
-      const fetchPromises = userSnap.docs.map(async (userDoc) => {
-        const subRef = collection(db, `users/${userDoc.id}/formSubmissions`);
-        const subSnap = await getDocs(subRef);
-        subSnap.forEach((d) => {
-          groups[userDoc.data().email].submissions.push({
-            id: d.id,
-            ...d.data()
-          });
-        });
+      const submissionsQuery = query(collectionGroup(db, "formSubmissions"));
+      const querySnapshot = await getDocs(submissionsQuery);
+      
+      const realSubmissions = querySnapshot.docs
+        .map(doc => ({ 
+          id: doc.id, 
+          fullPath: doc.ref.path, 
+          ...doc.data() 
+        }))
+        .filter((sub: any) => sub.year === activeYear) as any[];
+
+      realSubmissions.forEach((sub) => {
+        const email = sub.parentEmail?.trim().toLowerCase();
+        if (email && groupsObj[email]) {
+          groupsObj[email].submissions.push(sub);
+        }
       });
 
-      await Promise.all(fetchPromises);
-      const sortedGroups = Object.values(groups).sort((a, b) => a.lastName.localeCompare(b.lastName));
+      const allUsers = Object.values(groupsObj).map((parent: any) => {
+        const structuralSubs = dynamicTemplates.map((form: any) => {
+          const formDocId = form.id?.toLowerCase().trim();
+          const formName = form.name?.toLowerCase().trim();
+          const jotformId = form.jotformId?.toString().toLowerCase().trim();
+
+          const match = parent.submissions.find((s: any) => {
+            const savedBaseId = getBaseFormId(s.formId);
+            return (
+              savedBaseId === formDocId ||
+              savedBaseId === formName ||
+              savedBaseId === jotformId
+            );
+          });
+
+          if (match) {
+            return {
+              ...match,
+              displayName: form.name || form.id || "Untitled Form"
+            };
+          }
+
+          return {
+            id: `placeholder-${form.id}`,
+            formId: form.id || "unknown",
+            displayName: form.name || form.id || "Untitled Form",
+            status: "Not Submitted",
+            parentEmail: parent.email,
+            parentLastName: parent.lastName,
+            jotformSubmissionId: "",
+            adminFeedback: ""
+          };
+        });
+
+        return { ...parent, submissions: structuralSubs };
+      });
+
+      const sortedGroups = allUsers.sort((a, b) => 
+        (a.lastName || "").localeCompare(b.lastName || "")
+      );
       setGroupedSubmissions(sortedGroups);
     } catch (error) {
       console.error("Fetch Error:", error);
@@ -82,94 +165,90 @@ export default function CoordinatorDashboard() {
     }
   };
 
-  const handleRemoveParent = (parentEmail: string, lastName: string) => {
-    Alert.alert(
-      "PERMANENT REMOVAL",
-      `Are you sure you want to remove ${lastName.toUpperCase()} from your group?\n\nThis cannot be undone by you. You will need to contact a System Admin to add this parent back.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Remove Parent", 
-          style: "destructive", 
-          onPress: async () => {
-            try {
-              const user = auth.currentUser;
-              if (!user?.email) return;
-              const coordDocRef = doc(db, "approvedEmails", user.email);
-              await updateDoc(coordDocRef, { approvedParents: arrayRemove(parentEmail) });
-              fetchCoordinatorSubmissions();
-            } catch (e) {
-              Alert.alert("Error", "Could not remove parent.");
-            }
-          } 
-        }
-      ]
-    );
-  };
-
   useEffect(() => { fetchCoordinatorSubmissions(); }, []);
 
   const renderHeader = () => (
     <View>
       <View style={styles.rosterSection}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Group Roster</Text>
-          <TouchableOpacity 
-            style={[styles.editToggle, isEditMode && styles.editToggleActive]} 
-            onPress={() => setIsEditMode(!isEditMode)}
-          >
-            <Text style={[styles.editToggleText, isEditMode && { color: '#fff' }]}>
-              {isEditMode ? "Exit Management" : "Manage Roster"}
-            </Text>
-          </TouchableOpacity>
+          <View>
+            <Text style={styles.sectionTitle}>Group Roster</Text>
+            <Text style={styles.groupSubLabel}>{groupIdDisplay}</Text>
+          </View>
         </View>
 
         <View style={styles.rosterContainer}>
           {groupedSubmissions.map((parent) => (
-            <View key={parent.email} style={[styles.rosterRow, isEditMode && styles.rosterRowEdit]}>
+            <View key={parent.email || Math.random().toString()} style={styles.rosterRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.rosterName}>{parent.lastName.toUpperCase()}</Text>
-                <Text style={styles.rosterEmail}>{parent.email}</Text>
+                <Text style={styles.rosterName}>
+                  {(parent.lastName || "UNKNOWN").toUpperCase()}
+                </Text>
+                <Text style={styles.rosterEmail}>{parent.email || "No Email"}</Text>
               </View>
-              {isEditMode && (
-                <TouchableOpacity 
-                  style={styles.dangerBtn}
-                  onPress={() => handleRemoveParent(parent.email, parent.lastName)}
-                >
-                  <Text style={styles.dangerBtnText}>Remove</Text>
-                </TouchableOpacity>
-              )}
             </View>
           ))}
         </View>
       </View>
 
-      {/* Styled Section Header for the List */}
       <View style={styles.listHeaderContainer}>
-        <Text style={styles.listHeaderText}>SUBMISSION TRACKING</Text>
+        <Text style={styles.listHeaderText}>SUBMISSION TRACKING ({activeYear})</Text>
         <View style={styles.listHeaderLine} />
       </View>
     </View>
   );
 
   const renderSubmission = (sub: any) => {
-    const isIncomeForm = sub.formId?.toLowerCase().includes("income");
+    const isIncomeForm = 
+      sub.formId?.toLowerCase().includes("income") || 
+      sub.displayName?.toLowerCase().includes("income");
+    const isNotSubmitted = sub.status === "Not Submitted";
+    
+    // Defensive String Conversion
+    const titleText = (sub.displayName || sub.formId || "UNTITLED FORM").toUpperCase();
+
     return (
-      <View key={sub.id} style={styles.subItem}>
+      <View key={sub.id || Math.random().toString()} style={[styles.subItem, isNotSubmitted && styles.subItemUnsubmitted]}>
         <View style={styles.subRow}>
-          <Text style={styles.subTitle}>{sub.formId.toUpperCase()}</Text>
-          <Text style={[styles.subStatus, { color: sub.status === "Approved" ? "#2ECC71" : "#E69A2F" }]}>
-            {sub.status}
+          <Text style={[styles.subTitle, isNotSubmitted && styles.subTitleUnsubmitted]}>
+            {titleText}
+          </Text>
+          <Text 
+            style={[
+              styles.subStatus, 
+              { 
+                color: sub.status === "Approved" 
+                  ? "#2ECC71" 
+                  : sub.status === "Denied" 
+                  ? "#E74C3C" 
+                  : isNotSubmitted 
+                  ? "#7F8C8D" 
+                  : "#E69A2F" 
+              }
+            ]}
+          >
+            {sub.status || "Unknown"}
           </Text>
         </View>
-        {sub.adminFeedback && <Text style={styles.existingFeedback}>Note: {sub.adminFeedback}</Text>}
+        {sub.adminFeedback ? <Text style={styles.existingFeedback}>Note: {sub.adminFeedback}</Text> : null}
+        
         <View style={styles.subActions}>
-          {isIncomeForm ? (
-            <View style={styles.privacyBadge}><Text style={styles.privacyText}>Restricted (Admin Only)</Text></View>
+          {isNotSubmitted ? (
+            <View style={[styles.smallBtn, { backgroundColor: "#BDC3C7" }]}>
+              <Text style={styles.btnText}>No Submission</Text>
+            </View>
+          ) : isIncomeForm ? (
+            <View style={styles.privacyBadge}>
+              <Text style={styles.privacyText}>Restricted (Admin Only)</Text>
+            </View>
           ) : (
             <TouchableOpacity 
               style={styles.smallBtn} 
-              onPress={() => Linking.openURL(`https://www.jotform.com/submission/${sub.jotformSubmissionId}`)}
+              onPress={() => {
+                if (sub.jotformSubmissionId) {
+                  Linking.openURL(`https://www.jotform.com/submission/${sub.jotformSubmissionId}`);
+                }
+              }}
             >
               <Text style={styles.btnText}>View Data</Text>
             </TouchableOpacity>
@@ -181,14 +260,15 @@ export default function CoordinatorDashboard() {
 
   const renderGroup = ({ item }: { item: any }) => {
     const isExpanded = expandedUser === item.email;
-    const pendingCount = item.submissions.filter((s: any) => s.status === "Waiting for Approval").length;
+    const pendingCount = item.submissions?.filter((s: any) => s.status === "Waiting for Approval").length ?? 0;
+    const displayName = (item.lastName || "UNKNOWN").toUpperCase();
 
     return (
       <View style={styles.userCard}>
         <TouchableOpacity style={styles.userHeader} onPress={() => setExpandedUser(isExpanded ? null : item.email)}>
-          <View>
-            <Text style={styles.userName}>{item.lastName.toUpperCase()}</Text>
-            <Text style={styles.userEmail}>{item.email}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.userName}>{displayName}</Text>
+            <Text style={styles.userEmail}>{item.email || "No Email"}</Text>
           </View>
           {pendingCount > 0 && (
             <View style={styles.alertBadge}><Text style={styles.alertText}>{pendingCount} PENDING</Text></View>
@@ -196,10 +276,10 @@ export default function CoordinatorDashboard() {
         </TouchableOpacity>
         {isExpanded && (
           <View style={styles.expandedContent}>
-            {item.submissions.length > 0 ? (
+            {item.submissions && item.submissions.length > 0 ? (
                 item.submissions.map((sub: any) => renderSubmission(sub))
             ) : (
-                <Text style={styles.noSubText}>No activity for this school year.</Text>
+                <Text style={styles.noSubText}>No forms configured in the database.</Text>
             )}
           </View>
         )}
@@ -209,6 +289,8 @@ export default function CoordinatorDashboard() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen options={{ title: "", headerShown: true }} />
+
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.title}>Coordinator</Text>
@@ -226,8 +308,8 @@ export default function CoordinatorDashboard() {
           data={groupedSubmissions}
           renderItem={renderGroup}
           ListHeaderComponent={renderHeader}
-          keyExtractor={(item) => item.email}
-          ListEmptyComponent={<Text style={styles.emptyText}>No parents assigned to your group.</Text>}
+          keyExtractor={(item) => item.email || Math.random().toString()}
+          ListEmptyComponent={<Text style={styles.emptyText}>No parents assigned to your group configuration.</Text>}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchCoordinatorSubmissions} />}
           contentContainerStyle={{ paddingBottom: 40 }}
         />
@@ -244,27 +326,19 @@ const styles = StyleSheet.create({
   backBtn: { paddingVertical: 8, paddingHorizontal: 15, borderRadius: 8, backgroundColor: "#6f9bb2" },
   backBtnText: { color: "#fff", fontWeight: "bold" },
   
-  // Roster Management Section
   rosterSection: { backgroundColor: '#fff', padding: 15, borderRadius: 12, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   sectionTitle: { fontSize: 16, fontWeight: "bold", color: "#2c3e50" },
-  editToggle: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, backgroundColor: '#f0f0f0', borderWidth: 1, borderColor: '#ddd' },
-  editToggleActive: { backgroundColor: '#34495e', borderColor: '#34495e' },
-  editToggleText: { fontSize: 12, fontWeight: '700', color: '#333' },
+  groupSubLabel: { fontSize: 12, color: "#7f8c8d", marginTop: 2, fontWeight: "600" },
   rosterContainer: { marginTop: 5 },
   rosterRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f9f9f9' },
-  rosterRowEdit: { backgroundColor: '#fff5f5', paddingHorizontal: 8, borderRadius: 6, marginBottom: 4 },
   rosterName: { fontSize: 14, fontWeight: 'bold', color: '#333' },
   rosterEmail: { fontSize: 12, color: '#7f8c8d' },
-  dangerBtn: { backgroundColor: '#E74C3C', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6 },
-  dangerBtnText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
 
-  // List Section Header
   listHeaderContainer: { marginTop: 35, marginBottom: 15, paddingHorizontal: 5, flexDirection: 'row', alignItems: 'center' },
   listHeaderText: { fontSize: 12, fontWeight: "800", color: "#8e8e93", letterSpacing: 1.2 },
   listHeaderLine: { flex: 1, height: 1, backgroundColor: "#dcdcdc", marginLeft: 15 },
 
-  // List Items
   userCard: { backgroundColor: "#fff", borderRadius: 10, marginBottom: 10, elevation: 2 },
   userHeader: { padding: 15, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   userName: { fontSize: 18, fontWeight: "bold", color: "#2c3e50" },
@@ -272,16 +346,21 @@ const styles = StyleSheet.create({
   alertBadge: { backgroundColor: "#E69A2F", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 5 },
   alertText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
   expandedContent: { backgroundColor: "#fafafa", padding: 12, borderTopWidth: 1, borderTopColor: "#eee" },
+  
   subItem: { padding: 12, backgroundColor: "#fff", borderRadius: 8, marginBottom: 10, borderWidth: 1, borderColor: "#eee" },
+  subItemUnsubmitted: { backgroundColor: "#fbfbfb", borderColor: "#e6e6e6", borderStyle: "dashed" },
   subRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 5 },
   subTitle: { fontWeight: "bold", color: "#34495e", fontSize: 14 },
+  subTitleUnsubmitted: { color: "#7f8c8d", fontWeight: "600" },
   subStatus: { fontSize: 12, fontWeight: "800" },
   existingFeedback: { fontSize: 12, color: "#C0392B", marginBottom: 8 },
-  subActions: { marginTop: 5 },
-  smallBtn: { backgroundColor: "#34495E", alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6 },
+  
+  subActions: { flexDirection: "row", gap: 8, marginTop: 5 },
+  smallBtn: { backgroundColor: "#34495E", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6 },
   btnText: { color: "#fff", fontSize: 11, fontWeight: "bold" },
   privacyBadge: { backgroundColor: "#F2F2F2", alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6 },
   privacyText: { color: "#7F8C8D", fontSize: 11, fontStyle: "italic" },
+  
   noSubText: { textAlign: 'center', color: '#999', fontSize: 12, fontStyle: 'italic' },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 16 }
 });

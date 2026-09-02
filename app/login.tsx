@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { router, Stack } from "expo-router"; // Imported Stack here
 import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -163,6 +163,9 @@ export default function Login() {
 
   return (
     <View style={styles.container}>
+      {/* Clears header text at the very top but keeps the back button */}
+      <Stack.Screen options={{ title: "", headerShown: true }} />
+
       <Text style={styles.title}>{isCreateAccount ? titleCreate : titleLogin}</Text>
 
       {statusMessage !== "" && <Text style={styles.statusText}>{statusMessage}</Text>}

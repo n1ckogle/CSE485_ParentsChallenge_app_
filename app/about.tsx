@@ -1,3 +1,4 @@
+import { Stack } from "expo-router"; // Imported Stack here
 import React, { useContext, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
@@ -27,6 +28,9 @@ const aboutUs = () => {
 
   return (
     <SafeAreaProvider>
+      {/* This configuration removes the file/folder name from the header but keeps the back button */}
+      <Stack.Screen options={{ title: "" }} />
+
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContainer}>
           <View style={styles.titleContainer}>

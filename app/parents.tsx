@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router"; // Imported Stack here
 import { doc, getDoc } from "firebase/firestore";
 import React, { useContext, useEffect, useState } from "react";
 import {
@@ -15,13 +15,12 @@ import { translations } from "../translations";
 
 export default function Parents() {
   const router = useRouter();
-  const [canvaLink, setCanvaLink] = useState<string | null>(null);
+  const [empowermentLink, setEmpowermentLink] = useState<string | null>(null);
 
   const context = useContext(LanguageContext);
   const isSpanish = context?.isSpanish ?? false;
   const currentLang = isSpanish ? "es" : "en";
 
-  const parentsInfoText = translations?.[currentLang]?.parentsInfoText ?? "Parents Info";
   const empowermentSessionsText = translations?.[currentLang]?.parentsEmpowermentSessionsText ?? "Empowerment Sessions";
   const videosText = translations?.[currentLang]?.parentsVideosText ?? "Videos";
 
@@ -31,53 +30,43 @@ export default function Parents() {
         const docRef = doc(db, "settings", "canvaLink");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setCanvaLink(docSnap.data().schedule);
+          // Updated to target the correct string field requested
+          setEmpowermentLink(docSnap.data().empowermentSessionsSnapshot);
         }
       } catch (error) {
-        console.error("Error fetching canvaLink:", error);
+        console.error("Error fetching empowerment sessions link:", error);
       }
     };
     fetchLink();
   }, []);
 
-  const openEmpowermentLink = () => {
-    if (canvaLink) {
-      Linking.openURL(canvaLink);
+  const handleEmpowermentPress = () => {
+    if (empowermentLink) {
+      Linking.openURL(empowermentLink);
     } else {
       Alert.alert(
         isSpanish ? "Cargando" : "Loading", 
         isSpanish 
-          ? "Todavía se está obteniendo el último horario. Por favor, inténtelo de nuevo en un segundo." 
-          : "Still fetching the latest schedule. Please try again in a second."
+          ? "Todavía se está obteniendo el enlace de las sesiones. Por favor, inténtelo de nuevo en un segundo." 
+          : "Still fetching the session link. Please try again in a second."
       );
     }
   };
 
   return (
     <View style={styles.container}>
+      {/* Configuration to remove top header text while preserving the native back button */}
+      <Stack.Screen options={{ title: "", headerShown: true }} />
+
+      {/* Empowerment Sessions Button (Dynamic Link) */}
       <TouchableOpacity
         style={styles.button}
-        onPress={() =>
-          Linking.openURL(
-            "https://www.canva.com/design/DAHIRBa_j1I/pcjtffxAI5OIxM1M9sB9lw/view?utm_content=DAHIRBa_j1I&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h18cebc51ab",
-          )
-        }
-      >
-        <Text style={styles.buttonText}>{parentsInfoText}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.button}
-                onPress={() =>
-          Linking.openURL(
-            "https://www.canva.com/design/DAHKIY0sYvg/LY1XUWo8tqBYqkiyAfMe6w/view?utm_content=DAHKIY0sYvg&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h6649a2640b",
-          )
-        }
-
+        onPress={handleEmpowermentPress}
       >
         <Text style={styles.buttonText}>{empowermentSessionsText}</Text>
       </TouchableOpacity>
 
+      {/* Videos Button */}
       <TouchableOpacity
         style={styles.button}
         onPress={() =>

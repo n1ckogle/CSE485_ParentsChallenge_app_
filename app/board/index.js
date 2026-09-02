@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router"; // Imported Stack here
 import {
   FlatList,
   Image,
@@ -24,26 +24,28 @@ export default function Board() {
 
       <Text style={styles.name}>{item.name}</Text>
 
-<Text style={[styles.years, !item.years && styles.hidden]}>
-  {item.years ?? " "}
-</Text>
+      <Text style={[styles.years, !item.years && styles.hidden]}>
+        {item.years ?? " "}
+      </Text>
 
-<Text style={[styles.subtitle, !item.subtitle && styles.hidden]}>
-  {item.subtitle ?? " "}
-</Text>
+      <Text style={[styles.subtitle, !item.subtitle && styles.hidden]}>
+        {item.subtitle ?? " "}
+      </Text>
 
-<TouchableOpacity
-  style={styles.button}
-  onPress={() => router.push(`/board/${item.id}`)}
->
-  <Text style={styles.buttonText}>Read More</Text>
-</TouchableOpacity>
-
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push(`/board/${item.id}`)}
+      >
+        <Text style={styles.buttonText}>Read More</Text>
+      </TouchableOpacity>
     </View>
   );
 
   return (
     <View style={styles.container}>
+      {/* This configuration removes the file/folder name from the header but keeps the back button */}
+      <Stack.Screen options={{ title: "" }} />
+
       <Text style={styles.title}>Meet the Parents Challenge</Text>
       <Text style={styles.heading}>Board of Directors</Text>
 
@@ -144,9 +146,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#374151",
   },
   hidden: {
-  opacity: 0,
-},
-
+    opacity: 0,
+  },
   buttonText: {
     color: "#FFFFFF",
     fontSize: 13,

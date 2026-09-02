@@ -201,7 +201,8 @@ export default function ProgramsPage() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Programs" }} />
+      {/* Set the title to empty to remove the "Programs" text while preserving the back button */}
+      <Stack.Screen options={{ title: "" }} />
 
       <ScrollView
         style={styles.screen}

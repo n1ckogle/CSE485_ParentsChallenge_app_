@@ -1,3 +1,4 @@
+import { Stack } from "expo-router"; // Imported Stack here
 import React, { useContext } from "react";
 import {
   Linking,
@@ -22,7 +23,6 @@ export default function Schools() {
   const isSpanish = context?.isSpanish ?? false;
   const currentLang = isSpanish ? "es" : "en";
 
-  const headerText = translations?.[currentLang]?.schoolsHeaderText ?? "Schools";
   const descriptionText1 = translations?.[currentLang]?.schoolsDescriptionText1 ?? "";
   const descriptionText2 = translations?.[currentLang]?.schoolsDescriptionText2 ?? "";
   const easternCountyText = translations?.[currentLang]?.schoolsEasternCountyText ?? "Eastern El Paso County";
@@ -61,9 +61,11 @@ export default function Schools() {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.header}>{headerText}</Text>
+      {/* Clears header text at the very top but keeps the back button */}
+      <Stack.Screen options={{ title: "", headerShown: true }} />
 
+      <ScrollView contentContainerStyle={styles.scroll}>
+        {/* Removed internal headerText view so there is no repetitive text */}
         <View style={styles.descriptionBox}>
           <Text style={styles.descriptionText}>{descriptionText1}</Text>
           <Text style={styles.descriptionText}>{descriptionText2}</Text>
@@ -88,12 +90,6 @@ const styles = StyleSheet.create({
   scroll: {
     padding: 20,
     paddingBottom: 40,
-  },
-  header: {
-    fontSize: 28,
-    fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 16,
   },
   descriptionBox: {
     borderWidth: 2,
