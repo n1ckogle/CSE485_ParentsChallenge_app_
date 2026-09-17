@@ -1,5 +1,5 @@
 import { router, Stack } from "expo-router";
-import { deleteUser, updateEmail } from "firebase/auth";
+import { deleteUser, verifyBeforeUpdateEmail } from "firebase/auth";
 import {
   collection,
   deleteDoc,
@@ -7,7 +7,6 @@ import {
   getDoc,
   getDocs,
   query,
-  setDoc,
   updateDoc,
   where,
   writeBatch
@@ -16,6 +15,7 @@ import React, { useContext, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -44,7 +44,6 @@ export default function account_settings() {
   const currentLang = isSpanish ? "es" : "en";
   const text = translations?.[currentLang] ?? {};
 
-  // Fetch initial name values from Firestore on load
   useEffect(() => {
     const fetchUserProfile = async () => {
       const user = auth.currentUser;
@@ -65,13 +64,11 @@ export default function account_settings() {
     fetchUserProfile();
   }, []);
 
-  // Helper function to update references in the groups collection
   const updateGroupReferences = async (oldEmail: string, cleanEmail: string) => {
     const groupsRef = collection(db, "groups");
     const batch = writeBatch(db);
     let hasUpdates = false;
 
-    // 1. Find and update assignedParents array matches
     const parentQuery = query(groupsRef, where("assignedParents", "array-contains", oldEmail));
     const parentSnaps = await getDocs(parentQuery);
 
@@ -89,7 +86,6 @@ export default function account_settings() {
       hasUpdates = true;
     });
 
-    // 2. Find and update coordinatorEmail field matches
     const coordQuery = query(groupsRef, where("coordinatorEmail", "==", oldEmail));
     const coordSnaps = await getDocs(coordQuery);
 
@@ -149,88 +145,97 @@ export default function account_settings() {
   };
 
   const handleUpdateEmail = async () => {
-    const user = auth.currentUser;
-    const oldEmail = user?.email?.toLowerCase().trim();
-    const cleanEmail = newEmail.trim().toLowerCase();
+  const user = auth.currentUser;
+  const oldEmail = user?.email?.toLowerCase().trim();
+  const cleanEmail = newEmail.trim().toLowerCase();
 
-    if (!user || !oldEmail) {
-      Alert.alert("Error", "No user logged in.");
-      return;
+  if (!user || !oldEmail) {
+    const msg = "No user logged in.";
+    if (Platform.OS === "web") alert(msg);
+    else Alert.alert("Error", msg);
+    return;
+  }
+
+  if (!cleanEmail) {
+    const msg = isSpanish ? "Por favor ingrese un correo válido." : "Please enter a valid email address.";
+    if (Platform.OS === "web") alert(msg);
+    else Alert.alert("Error", msg);
+    return;
+  }
+
+  if (oldEmail === cleanEmail) {
+    const msg = isSpanish ? "El nuevo correo debe ser diferente al actual." : "New email must be different from current email.";
+    if (Platform.OS === "web") alert(msg);
+    else Alert.alert("Error", msg);
+    return;
+  }
+
+  try {
+    setUpdating(true);
+    setBannerMessage("");
+    console.log("Sending verification link to:", cleanEmail);
+
+    // 1. Send verification link to new email address
+    await verifyBeforeUpdateEmail(user, cleanEmail);
+
+    const successTitle = isSpanish ? "Verificación Enviada" : "Verification Sent";
+    const successMsg = isSpanish
+      ? "Se ha enviado un correo de verificación a la nueva dirección. Por favor confírmelo para completar el cambio."
+      : "A verification email has been sent to your new address. Please verify it to complete the update.";
+
+    console.log("Verification email successfully requested.");
+
+    // 2. Cross-platform feedback
+    if (Platform.OS === "web") {
+      alert(`${successTitle}\n\n${successMsg}`);
+    } else {
+      Alert.alert(successTitle, successMsg);
     }
 
-    if (!cleanEmail) {
-      Alert.alert("Error", "Please enter a valid email address.");
-      return;
+    setBannerMessage(successMsg);
+    setNewEmail("");
+  } catch (error: any) {
+    console.error("Error updating email: ", error);
+    
+    const errTitle = isSpanish ? "Error al actualizar correo" : "Email Update Error";
+    const errMsg = error.message || "Failed to update email.";
+
+    if (error.code === 'auth/requires-recent-login') {
+      const reqMsg = isSpanish 
+        ? "Por seguridad, debe iniciar sesión de nuevo para cambiar su correo electrónico." 
+        : "For your security, please log out and back in again to update your email address.";
+      if (Platform.OS === "web") alert(reqMsg);
+      else Alert.alert(isSpanish ? "Acción Requerida" : "Security Re-authentication Required", reqMsg);
+    } else {
+      if (Platform.OS === "web") alert(`${errTitle}: ${errMsg}`);
+      else Alert.alert(errTitle, errMsg);
     }
+  } finally {
+    setUpdating(false);
+  }
+};
 
-    if (oldEmail === cleanEmail) {
-      Alert.alert("Error", "New email must be different from current email.");
-      return;
-    }
-
-    try {
-      setUpdating(true);
-      setBannerMessage("");
-
-      const userRef = doc(db, "users", user.uid);
-      const userSnap = await getDoc(userRef);
-      const currentRole = userSnap.exists() ? (userSnap.data().role || "family") : "family";
-
-      // 1. Update Authentication Email
-      await updateEmail(user, cleanEmail);
-
-      // 2. Update User Document
-      await updateDoc(userRef, {
-        email: cleanEmail,
-        updatedAt: new Date().toISOString()
-      });
-
-      // 3. Update Approved Emails collection
-      const newApprovedRef = doc(db, "approvedEmails", cleanEmail);
-      const oldApprovedRef = doc(db, "approvedEmails", oldEmail);
-
-      await setDoc(newApprovedRef, { role: currentRole }, { merge: true });
-      await deleteDoc(oldApprovedRef);
-
-      // 4. Update Groups Collection References
-      await updateGroupReferences(oldEmail, cleanEmail);
-
-      setBannerMessage(isSpanish ? "¡Correo electrónico actualizado con éxito!" : "Email updated successfully!");
-      setNewEmail("");
-    } catch (error: any) {
-      console.error("Error updating email: ", error);
-      
-      if (error.code === 'auth/requires-recent-login') {
-        Alert.alert(
-          isSpanish ? "Acción Requerida" : "Security Re-authentication Required",
-          isSpanish 
-            ? "Por seguridad, debe iniciar sesión de nuevo para cambiar su correo electrónico." 
-            : "For your security, please log out and back in again to update your email address."
-        );
-      } else {
-        Alert.alert("Error", error.message || "Failed to update email.");
-      }
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  // Trigger confirmation dialog for Apple guideline 5.1.1(v)
+  // Handles confirmation across both Mobile (Alert.alert) and Web (window.confirm)
   const confirmDeleteAccount = () => {
-    Alert.alert(
-      isSpanish ? "Eliminar Cuenta" : "Delete Account",
-      isSpanish
-        ? "¿Está seguro de que desea eliminar su cuenta? Esta acción es permanente y eliminará todos sus datos."
-        : "Are you sure you want to delete your account? This action is permanent and will remove all your data.",
-      [
+    const title = isSpanish ? "Eliminar Cuenta" : "Delete Account";
+    const message = isSpanish
+      ? "¿Está seguro de que desea eliminar su cuenta? Esta acción es permanente y eliminará todos sus datos."
+      : "Are you sure you want to delete your account? This action is permanent and will remove all your data.";
+
+    if (Platform.OS === "web") {
+      if (window.confirm(`${title}\n\n${message}`)) {
+        processAccountDeletion();
+      }
+    } else {
+      Alert.alert(title, message, [
         { text: isSpanish ? "Cancelar" : "Cancel", style: "cancel" },
         {
           text: isSpanish ? "Eliminar" : "Delete",
           style: "destructive",
           onPress: processAccountDeletion,
         },
-      ]
-    );
+      ]);
+    }
   };
 
   const processAccountDeletion = async () => {
@@ -243,10 +248,10 @@ export default function account_settings() {
     try {
       setDeleting(true);
 
-      // 1. Delete user record from Firestore
+      // Delete Firestore document
       await deleteDoc(doc(db, "users", uid));
 
-      // 2. Clean up approvedEmails and group mappings if applicable
+      // Clean up approved emails and group references
       if (userEmail) {
         await deleteDoc(doc(db, "approvedEmails", userEmail));
 
@@ -268,27 +273,38 @@ export default function account_settings() {
         await batch.commit();
       }
 
-      // 3. Delete Firebase Auth user
+      // Delete Firebase Auth User
       await deleteUser(user);
 
-      Alert.alert(
-        isSpanish ? "Cuenta Eliminada" : "Account Deleted",
-        isSpanish ? "Su cuenta ha sido eliminada con éxito." : "Your account has been successfully deleted."
-      );
+      if (Platform.OS === "web") {
+        alert(isSpanish ? "Su cuenta ha sido eliminada con éxito." : "Your account has been successfully deleted.");
+      } else {
+        Alert.alert(
+          isSpanish ? "Cuenta Eliminada" : "Account Deleted",
+          isSpanish ? "Su cuenta ha sido eliminada con éxito." : "Your account has been successfully deleted."
+        );
+      }
 
       router.replace("/");
     } catch (error: any) {
       console.error("Error deleting account: ", error);
 
       if (error.code === "auth/requires-recent-login") {
-        Alert.alert(
-          isSpanish ? "Acción Requerida" : "Security Re-authentication Required",
-          isSpanish
-            ? "Por seguridad, debe cerrar sesión e iniciar sesión de nuevo antes de eliminar su cuenta."
-            : "For your security, please log out and back in again before deleting your account."
-        );
+        const reqMessage = isSpanish
+          ? "Por seguridad, debe cerrar sesión e iniciar sesión de nuevo antes de eliminar su cuenta."
+          : "For your security, please log out and back in again before deleting your account.";
+        
+        if (Platform.OS === "web") {
+          alert(reqMessage);
+        } else {
+          Alert.alert(isSpanish ? "Acción Requerida" : "Security Re-authentication Required", reqMessage);
+        }
       } else {
-        Alert.alert("Error", error.message || "Failed to delete account.");
+        if (Platform.OS === "web") {
+          alert(error.message || "Failed to delete account.");
+        } else {
+          Alert.alert("Error", error.message || "Failed to delete account.");
+        }
       }
     } finally {
       setDeleting(false);
