@@ -882,10 +882,21 @@ export default function AdminDashboard() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Reason for Denial</Text>
-            <TextInput style={styles.textInput} multiline placeholder="Feedback..." placeholderTextColor="#888" value={denialReason} onChangeText={setDenialReason} />
+            <TextInput 
+              style={styles.textInput} 
+              multiline 
+              placeholder="Feedback..." 
+              placeholderTextColor="#888" 
+              value={denialReason} 
+              onChangeText={setDenialReason} 
+            />
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setDenyModalVisible(false)}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.submitDenyBtn} onPress={submitDenial}><Text style={styles.btnText}>Submit Denial</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setDenyModalVisible(false)}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.submitDenyBtn} onPress={submitDenial}>
+                <Text style={styles.btnText}>Submit Denial</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -894,11 +905,11 @@ export default function AdminDashboard() {
       {/* Modal 4: Admin Quick Actions Menu */}
       <Modal visible={actionMenuVisible} transparent animationType="slide">
         <TouchableOpacity 
-          style={styles.modalOverlay} 
+          style={styles.actionMenuOverlay} 
           activeOpacity={1} 
           onPress={() => setActionMenuVisible(false)}
         >
-          <View style={styles.actionMenuContent}>
+          <TouchableOpacity activeOpacity={1} style={styles.actionMenuContent}>
             <Text style={styles.actionMenuTitle}>Admin Actions</Text>
 
             {showCoordinatorToggle && (
@@ -950,7 +961,7 @@ export default function AdminDashboard() {
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setActionMenuVisible(false)}>
               <Text style={styles.cancelBtnText}>Close</Text>
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -1161,14 +1172,18 @@ const styles = StyleSheet.create({
   bulkBtn: { padding: 15, borderRadius: 8, alignItems: 'center' },
 
   // Action Menu Bottom Sheet Styles
+  actionMenuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
   actionMenuContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
     width: '100%',
-    position: 'absolute',
-    bottom: 0,
   },
   actionMenuTitle: {
     fontSize: 18,
