@@ -1,4 +1,4 @@
-import { router, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import {
   collection,
   collectionGroup,
@@ -296,9 +296,6 @@ export default function CoordinatorDashboard() {
           <Text style={styles.title}>Coordinator</Text>
           <Text style={styles.subtitle}>{groupedSubmissions.length} assigned families</Text>
         </View>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>Back</Text>
-        </TouchableOpacity>
       </View>
       
       {loading ? (
@@ -320,11 +317,9 @@ export default function CoordinatorDashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f4f7f6", padding: 15 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 40, marginBottom: 15 },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10, marginBottom: 15 },
   title: { fontSize: 24, fontWeight: "bold", color: "#333" },
   subtitle: { fontSize: 14, color: "#666" },
-  backBtn: { paddingVertical: 8, paddingHorizontal: 15, borderRadius: 8, backgroundColor: "#6f9bb2" },
-  backBtnText: { color: "#fff", fontWeight: "bold" },
   
   rosterSection: { backgroundColor: '#fff', padding: 15, borderRadius: 12, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
@@ -349,8 +344,8 @@ const styles = StyleSheet.create({
   
   subItem: { padding: 12, backgroundColor: "#fff", borderRadius: 8, marginBottom: 10, borderWidth: 1, borderColor: "#eee" },
   subItemUnsubmitted: { backgroundColor: "#fbfbfb", borderColor: "#e6e6e6", borderStyle: "dashed" },
-  subRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 5 },
-  subTitle: { fontWeight: "bold", color: "#34495e", fontSize: 14 },
+  subRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 5 },
+  subTitle: { flex: 1, marginRight: 10, fontWeight: "bold", color: "#34495e", fontSize: 14 },
   subTitleUnsubmitted: { color: "#7f8c8d", fontWeight: "600" },
   subStatus: { fontSize: 12, fontWeight: "800" },
   existingFeedback: { fontSize: 12, color: "#C0392B", marginBottom: 8 },
