@@ -15,6 +15,7 @@ import React, { useContext, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -25,6 +26,8 @@ import {
 import { auth, db } from "../firebaseConfig";
 import { LanguageContext } from "../LanguageContext";
 import { translations } from "../translations";
+
+const PRIVACY_POLICY_URL = "https://doc-hosting.flycricket.io/parents-challenge-privacy-policy/dbaa69a4-9591-4b15-ac7f-e3696c21392d/privacy";
 
 export default function account_settings() {
   const [newEmail, setNewEmail] = useState("");
@@ -145,77 +148,74 @@ export default function account_settings() {
   };
 
   const handleUpdateEmail = async () => {
-  const user = auth.currentUser;
-  const oldEmail = user?.email?.toLowerCase().trim();
-  const cleanEmail = newEmail.trim().toLowerCase();
+    const user = auth.currentUser;
+    const oldEmail = user?.email?.toLowerCase().trim();
+    const cleanEmail = newEmail.trim().toLowerCase();
 
-  if (!user || !oldEmail) {
-    const msg = "No user logged in.";
-    if (Platform.OS === "web") alert(msg);
-    else Alert.alert("Error", msg);
-    return;
-  }
-
-  if (!cleanEmail) {
-    const msg = isSpanish ? "Por favor ingrese un correo válido." : "Please enter a valid email address.";
-    if (Platform.OS === "web") alert(msg);
-    else Alert.alert("Error", msg);
-    return;
-  }
-
-  if (oldEmail === cleanEmail) {
-    const msg = isSpanish ? "El nuevo correo debe ser diferente al actual." : "New email must be different from current email.";
-    if (Platform.OS === "web") alert(msg);
-    else Alert.alert("Error", msg);
-    return;
-  }
-
-  try {
-    setUpdating(true);
-    setBannerMessage("");
-    console.log("Sending verification link to:", cleanEmail);
-
-    // 1. Send verification link to new email address
-    await verifyBeforeUpdateEmail(user, cleanEmail);
-
-    const successTitle = isSpanish ? "Verificación Enviada" : "Verification Sent";
-    const successMsg = isSpanish
-      ? "Se ha enviado un correo de verificación a la nueva dirección. Por favor confírmelo para completar el cambio."
-      : "A verification email has been sent to your new address. Please verify it to complete the update.";
-
-    console.log("Verification email successfully requested.");
-
-    // 2. Cross-platform feedback
-    if (Platform.OS === "web") {
-      alert(`${successTitle}\n\n${successMsg}`);
-    } else {
-      Alert.alert(successTitle, successMsg);
+    if (!user || !oldEmail) {
+      const msg = "No user logged in.";
+      if (Platform.OS === "web") alert(msg);
+      else Alert.alert("Error", msg);
+      return;
     }
 
-    setBannerMessage(successMsg);
-    setNewEmail("");
-  } catch (error: any) {
-    console.error("Error updating email: ", error);
-    
-    const errTitle = isSpanish ? "Error al actualizar correo" : "Email Update Error";
-    const errMsg = error.message || "Failed to update email.";
-
-    if (error.code === 'auth/requires-recent-login') {
-      const reqMsg = isSpanish 
-        ? "Por seguridad, debe iniciar sesión de nuevo para cambiar su correo electrónico." 
-        : "For your security, please log out and back in again to update your email address.";
-      if (Platform.OS === "web") alert(reqMsg);
-      else Alert.alert(isSpanish ? "Acción Requerida" : "Security Re-authentication Required", reqMsg);
-    } else {
-      if (Platform.OS === "web") alert(`${errTitle}: ${errMsg}`);
-      else Alert.alert(errTitle, errMsg);
+    if (!cleanEmail) {
+      const msg = isSpanish ? "Por favor ingrese un correo válido." : "Please enter a valid email address.";
+      if (Platform.OS === "web") alert(msg);
+      else Alert.alert("Error", msg);
+      return;
     }
-  } finally {
-    setUpdating(false);
-  }
-};
 
-  // Handles confirmation across both Mobile (Alert.alert) and Web (window.confirm)
+    if (oldEmail === cleanEmail) {
+      const msg = isSpanish ? "El nuevo correo debe ser diferente al actual." : "New email must be different from current email.";
+      if (Platform.OS === "web") alert(msg);
+      else Alert.alert("Error", msg);
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      setBannerMessage("");
+      console.log("Sending verification link to:", cleanEmail);
+
+      await verifyBeforeUpdateEmail(user, cleanEmail);
+
+      const successTitle = isSpanish ? "Verificación Enviada" : "Verification Sent";
+      const successMsg = isSpanish
+        ? "Se ha enviado un correo de verificación a la nueva dirección. Por favor confírmelo para completar el cambio."
+        : "A verification email has been sent to your new address. Please verify it to complete the update.";
+
+      console.log("Verification email successfully requested.");
+
+      if (Platform.OS === "web") {
+        alert(`${successTitle}\n\n${successMsg}`);
+      } else {
+        Alert.alert(successTitle, successMsg);
+      }
+
+      setBannerMessage(successMsg);
+      setNewEmail("");
+    } catch (error: any) {
+      console.error("Error updating email: ", error);
+      
+      const errTitle = isSpanish ? "Error al actualizar correo" : "Email Update Error";
+      const errMsg = error.message || "Failed to update email.";
+
+      if (error.code === 'auth/requires-recent-login') {
+        const reqMsg = isSpanish 
+          ? "Por seguridad, debe iniciar sesión de nuevo para cambiar su correo electrónico." 
+          : "For your security, please log out and back in again to update your email address.";
+        if (Platform.OS === "web") alert(reqMsg);
+        else Alert.alert(isSpanish ? "Acción Requerida" : "Security Re-authentication Required", reqMsg);
+      } else {
+        if (Platform.OS === "web") alert(`${errTitle}: ${errMsg}`);
+        else Alert.alert(errTitle, errMsg);
+      }
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const confirmDeleteAccount = () => {
     const title = isSpanish ? "Eliminar Cuenta" : "Delete Account";
     const message = isSpanish
@@ -248,10 +248,8 @@ export default function account_settings() {
     try {
       setDeleting(true);
 
-      // Delete Firestore document
       await deleteDoc(doc(db, "users", uid));
 
-      // Clean up approved emails and group references
       if (userEmail) {
         await deleteDoc(doc(db, "approvedEmails", userEmail));
 
@@ -273,7 +271,6 @@ export default function account_settings() {
         await batch.commit();
       }
 
-      // Delete Firebase Auth User
       await deleteUser(user);
 
       if (Platform.OS === "web") {
@@ -335,6 +332,20 @@ export default function account_settings() {
       <View style={styles.section}>
         <Pressable style={styles.button} onPress={toggleLanguage}>
           <Text style={styles.buttonText}>{text?.changeLanguage ?? "Change Language"}</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.separator} />
+
+      {/* Privacy Policy Section */}
+      <View style={styles.section}>
+        <Pressable 
+          style={[styles.button, styles.privacyButton]} 
+          onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+        >
+          <Text style={styles.buttonText}>
+            {isSpanish ? "Política de Privacidad" : "Privacy Policy"}
+          </Text>
         </Pressable>
       </View>
 
@@ -486,6 +497,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 20,
     marginVertical: 5,
+  },
+  privacyButton: {
+    backgroundColor: "#8E44AD",
   },
   updateButton: {
     backgroundColor: "#2ECC71",

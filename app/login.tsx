@@ -1,4 +1,4 @@
-import { router, Stack } from "expo-router"; // Imported Stack here
+import { router, Stack } from "expo-router";
 import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -8,6 +8,7 @@ import {
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import React, { useContext, useState } from "react";
 import {
+  Linking,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +18,8 @@ import {
 import { auth, db } from "../firebaseConfig";
 import { LanguageContext } from "../LanguageContext";
 import { translations } from "../translations";
+
+const PRIVACY_POLICY_URL = "https://doc-hosting.flycricket.io/parents-challenge-privacy-policy/dbaa69a4-9591-4b15-ac7f-e3696c21392d/privacy";
 
 export default function Login() {
   const context = useContext(LanguageContext);
@@ -163,7 +166,6 @@ export default function Login() {
 
   return (
     <View style={styles.container}>
-      {/* Clears header text at the very top but keeps the back button */}
       <Stack.Screen options={{ title: "", headerShown: true }} />
 
       <Text style={styles.title}>{isCreateAccount ? titleCreate : titleLogin}</Text>
@@ -232,6 +234,15 @@ export default function Login() {
             </TouchableOpacity>
           </>
         )}
+
+        <TouchableOpacity 
+          onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+          style={styles.privacyLinkContainer}
+        >
+          <Text style={styles.privacyLinkText}>
+            {isSpanish ? "Política de Privacidad" : "Privacy Policy"}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity
@@ -292,4 +303,6 @@ const styles = StyleSheet.create({
   secondaryButtonText: { color: BUTTON_COLOR, fontSize: 14, fontWeight: "500" },
   forgotPasswordContainer: { alignSelf: "flex-end", marginBottom: 15, marginTop: 5 },
   forgotPasswordText: { color: BUTTON_COLOR, fontSize: 14, fontWeight: "500", textDecorationLine: "underline" },
+  privacyLinkContainer: { marginTop: 16, alignItems: "center" },
+  privacyLinkText: { color: "#888", fontSize: 13, textDecorationLine: "underline" },
 });

@@ -30,6 +30,12 @@ import {
 } from "react-native";
 import { auth, db } from "../firebaseConfig";
 
+const getSchoolYear = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  return now.getMonth() >= 6 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+};
+
 export default function AdminDashboard() {
   const [groupedSubmissions, setGroupedSubmissions] = useState<any[]>([]);
   const [pendingParents, setPendingParents] = useState<any[]>([]);
@@ -571,6 +577,7 @@ export default function AdminDashboard() {
         formId: sub.formId || "",
         parentEmail: sub.parentEmail || "",
         parentLastName: sub.parentLastName || "",
+        year: getSchoolYear(),
         updatedAt: new Date().toISOString()
       }, { merge: true });
       
@@ -586,6 +593,7 @@ export default function AdminDashboard() {
         adminFeedback: denialReason || "No reason provided.",
         formId: activeSub.formId || "",
         parentEmail: activeSub.email || "",
+        year: getSchoolYear(),
         updatedAt: new Date().toISOString()
       }, { merge: true });
 
