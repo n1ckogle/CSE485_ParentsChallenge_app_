@@ -168,7 +168,7 @@ export const translations = {
       "At Parents Challenge, we believe that every child deserves access to a quality education that fits their unique needs. We empower parents by providing the resources and support needed to make informed decisions about their children’s education.",
 
     schoolsDescriptionText2:
-      "Simply click on a county below to view a list of public, private, and charter schools in that region. Your child’s future starts with the right choice—let us help you find the best fit!",
+      "Simply click on a county below to view a list of public, private, and charter schools in that region, as well as homeschooling options. Your child’s future starts with the right choice—let us help you find the best fit!",
 
     schoolsEasternCountyText: "Eastern El Paso County",
 
