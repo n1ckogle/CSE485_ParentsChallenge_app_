@@ -54,6 +54,9 @@ export default function AdminDashboard() {
   const [denialReason, setDenialReason] = useState("");
   const [activeSub, setActiveSub] = useState<{path: string, email: string, formId?: string, userId?: string} | null>(null);
 
+  // Action Menu State
+  const [actionMenuVisible, setActionMenuVisible] = useState(false);
+
   useEffect(() => { 
     checkOverlapRole();
     fetchAllSubmissions(); 
@@ -647,28 +650,12 @@ export default function AdminDashboard() {
 
       <View style={styles.headerRow}>
         <Text style={styles.title}>Admin Panel</Text>
-        <View style={styles.headerActions}>
-          {showCoordinatorToggle ? (
-            <TouchableOpacity style={[styles.actionBtn, { borderColor: "#9B59B6" }]} onPress={() => router.push("/coordinator_dashboard")}>
-              <Text style={[styles.actionBtnText, { color: "#9B59B6" }]}>Coordinator View</Text>
-            </TouchableOpacity>
-          ) : null}
-           <TouchableOpacity style={[styles.actionBtn, { borderColor: "#6f9bb2" }]} onPress={() => router.push("/uplanding")}>
-            <Text style={[styles.actionBtnText, { color: "#6f9bb2" }]}>Parent View</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: "#27ae60" }]} onPress={handleExportReport}>
-            <Text style={[styles.actionBtnText, { color: "#27ae60" }]}>Run Report</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: "#2D9CDB" }]} onPress={handlePickUserCSV} disabled={isUploading}>
-            <Text style={[styles.actionBtnText, { color: "#2D9CDB" }]}>Users CSV</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: "#E69A2F" }]} onPress={handlePickGroupCSV} disabled={isUploading}>
-            <Text style={[styles.actionBtnText, { color: "#E69A2F" }]}>Groups CSV</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: "#E74C3C" }]} onPress={handleLogout}>
-            <Text style={[styles.actionBtnText, { color: "#E74C3C" }]}>Logout</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity 
+          style={styles.menuTriggerBtn} 
+          onPress={() => setActionMenuVisible(true)}
+        >
+          <Text style={styles.menuTriggerText}>⚙️ Actions</Text>
+        </TouchableOpacity>
       </View>
       
       {loading ? (
@@ -890,6 +877,7 @@ export default function AdminDashboard() {
         </View>
       </Modal>
 
+      {/* Modal 3: Denial Feedback */}
       <Modal visible={denyModalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -902,18 +890,94 @@ export default function AdminDashboard() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal 4: Admin Quick Actions Menu */}
+      <Modal visible={actionMenuVisible} transparent animationType="slide">
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setActionMenuVisible(false)}
+        >
+          <View style={styles.actionMenuContent}>
+            <Text style={styles.actionMenuTitle}>Admin Actions</Text>
+
+            {showCoordinatorToggle && (
+              <TouchableOpacity 
+                style={[styles.menuItem, { backgroundColor: "#F5EEF8" }]} 
+                onPress={() => { setActionMenuVisible(false); router.push("/coordinator_dashboard"); }}
+              >
+                <Text style={[styles.menuItemText, { color: "#9B59B6" }]}>📊 Coordinator View</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity 
+              style={[styles.menuItem, { backgroundColor: "#EBF5FB" }]} 
+              onPress={() => { setActionMenuVisible(false); router.push("/uplanding"); }}
+            >
+              <Text style={[styles.menuItemText, { color: "#2980B9" }]}>👨‍👩‍👧 Parent View</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.menuItem, { backgroundColor: "#EAFAF1" }]} 
+              onPress={() => { setActionMenuVisible(false); handleExportReport(); }}
+            >
+              <Text style={[styles.menuItemText, { color: "#27AE60" }]}>📄 Run Report (CSV)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.menuItem, { backgroundColor: "#EBF5FB" }]} 
+              onPress={() => { setActionMenuVisible(false); handlePickUserCSV(); }}
+              disabled={isUploading}
+            >
+              <Text style={[styles.menuItemText, { color: "#2D9CDB" }]}>📥 Import Users CSV</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.menuItem, { backgroundColor: "#FEF5E7" }]} 
+              onPress={() => { setActionMenuVisible(false); handlePickGroupCSV(); }}
+              disabled={isUploading}
+            >
+              <Text style={[styles.menuItemText, { color: "#E69A2F" }]}>👥 Import Groups CSV</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.menuItem, { backgroundColor: "#FDEDEC", marginTop: 10 }]} 
+              onPress={() => { setActionMenuVisible(false); handleLogout(); }}
+            >
+              <Text style={[styles.menuItemText, { color: "#E74C3C" }]}>🚪 Logout</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setActionMenuVisible(false)}>
+              <Text style={styles.cancelBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f4f7f6", padding: 15 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 40, marginBottom: 20 },
-  headerActions: { flexDirection: "row", gap: 8 },
-  title: { fontSize: 22, fontWeight: "bold", color: "#000" },
-  actionBtn: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: "#fff", borderWidth: 1 },
-  actionBtnText: { fontWeight: "bold", fontSize: 11 },
   
+  // Header Adjustments
+  headerRow: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "center", 
+    marginTop: 10, 
+    marginBottom: 16,
+    paddingHorizontal: 4
+  },
+  title: { fontSize: 24, fontWeight: "bold", color: "#2C3E50" },
+  menuTriggerBtn: {
+    backgroundColor: "#2C3E50",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  menuTriggerText: { color: "#fff", fontWeight: "bold", fontSize: 13 },
+
   // Stats Breakdown Header
   statsContainer: {
     marginBottom: 15,
@@ -1084,7 +1148,7 @@ const styles = StyleSheet.create({
   smallBtn: { backgroundColor: "#34495E", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6 },
   btnText: { color: "#fff", fontSize: 11, fontWeight: "bold" },
   
-  // Modal Styles
+  // Modal Standard Styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: '#fff', borderRadius: 15, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 5, color: "#000" },
@@ -1094,5 +1158,33 @@ const styles = StyleSheet.create({
   cancelBtn: { padding: 12, alignItems: 'center' },
   cancelBtnText: { color: '#666', fontWeight: 'bold' },
   submitDenyBtn: { backgroundColor: '#E74C3C', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8 },
-  bulkBtn: { padding: 15, borderRadius: 8, alignItems: 'center' }
+  bulkBtn: { padding: 15, borderRadius: 8, alignItems: 'center' },
+
+  // Action Menu Bottom Sheet Styles
+  actionMenuContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    width: '100%',
+    position: 'absolute',
+    bottom: 0,
+  },
+  actionMenuTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  menuItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
 });
