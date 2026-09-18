@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.parentschallenge.app",
-      "icon": "./assets/icon.png",
+      "icon": "./assets/images/icon.png",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
@@ -19,10 +19,16 @@
           "instagram",
           "twitter",
           "linkedin",
-          "vnd.youtube"        
+          "vnd.youtube",
+          "fb",
+          "instagram",
+          "twitter",
+          "linkedin",
+          "vnd.youtube"
         ],
         "NSPhotoLibraryUsageDescription": "This app requires access to your photo library to select and upload document attachments.",
-        "NSCameraUsageDescription": "This app requires camera access to capture documents for submissions."
+        "NSCameraUsageDescription": "This app requires camera access to capture documents for submissions.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
