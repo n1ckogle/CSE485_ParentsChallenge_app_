@@ -18,6 +18,7 @@ import {
   Linking,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -66,44 +67,6 @@ export default function account_settings() {
 
     fetchUserProfile();
   }, []);
-
-  const updateGroupReferences = async (oldEmail: string, cleanEmail: string) => {
-    const groupsRef = collection(db, "groups");
-    const batch = writeBatch(db);
-    let hasUpdates = false;
-
-    const parentQuery = query(groupsRef, where("assignedParents", "array-contains", oldEmail));
-    const parentSnaps = await getDocs(parentQuery);
-
-    parentSnaps.forEach((docSnap) => {
-      const data = docSnap.data();
-      const currentParents: string[] = data.assignedParents || [];
-      const updatedParents = currentParents.map((email) =>
-        email.toLowerCase() === oldEmail ? cleanEmail : email
-      );
-
-      batch.update(docSnap.ref, { 
-        assignedParents: updatedParents,
-        updatedAt: new Date().toISOString()
-      });
-      hasUpdates = true;
-    });
-
-    const coordQuery = query(groupsRef, where("coordinatorEmail", "==", oldEmail));
-    const coordSnaps = await getDocs(coordQuery);
-
-    coordSnaps.forEach((docSnap) => {
-      batch.update(docSnap.ref, { 
-        coordinatorEmail: cleanEmail,
-        updatedAt: new Date().toISOString()
-      });
-      hasUpdates = true;
-    });
-
-    if (hasUpdates) {
-      await batch.commit();
-    }
-  };
 
   const handleUpdateName = async () => {
     const user = auth.currentUser;
@@ -176,7 +139,6 @@ export default function account_settings() {
     try {
       setUpdating(true);
       setBannerMessage("");
-      console.log("Sending verification link to:", cleanEmail);
 
       await verifyBeforeUpdateEmail(user, cleanEmail);
 
@@ -184,8 +146,6 @@ export default function account_settings() {
       const successMsg = isSpanish
         ? "Se ha enviado un correo de verificación a la nueva dirección. Por favor confírmelo para completar el cambio."
         : "A verification email has been sent to your new address. Please verify it to complete the update.";
-
-      console.log("Verification email successfully requested.");
 
       if (Platform.OS === "web") {
         alert(`${successTitle}\n\n${successMsg}`);
@@ -310,14 +270,18 @@ export default function account_settings() {
 
   if (loadingLanguage) {
     return (
-      <View style={styles.container}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6699AB" />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView 
+      style={styles.scrollContainer}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={true}
+    >
       <Stack.Screen options={{ title: "" }} />
 
       <Text style={styles.title}>{text?.settingsTitle ?? "Account Settings"}</Text>
@@ -443,17 +407,26 @@ export default function account_settings() {
           )}
         </Pressable>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollContainer: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
   container: {
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 60, // Extra bottom padding ensures Delete button scrolls well clear of screen edges
+  },
+  loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#fff",
-    padding: 24,
   },
   title: {
     fontSize: 28,
